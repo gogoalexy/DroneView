@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import pandas as pd
+import pyulog
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input")
@@ -16,10 +17,16 @@ args = parser.parse_args()
 infile = args.input
 infileName = os.path.splitext(infile)[0]
 
+try:
+    px4log = pyulog.px4.PX4ULog(pyulog.ULog(infile))
+    print(px4log)
+except:
+    pass
+
 with TemporaryDirectory() as csvtmp:
-    
-    os.system(f"ulog2csv -m 'vehicle_attitude,vehicle_angular_velocity,vehicle_local_position' -o {csvtmp} {infile}")
-    
+
+    os.system(f"ulog2csv -m 'vehicle_attitude,vehicle_local_position' -o {csvtmp} {infile}")
+
     csvreader = pd.read_csv(f"{csvtmp}/{infileName}_vehicle_local_position_0.csv")
     time_seq = np.array( [ microsec/1e6 for microsec in csvreader['timestamp']] )
     horizontal_std = np.array(csvreader['eph'])
@@ -38,7 +45,7 @@ with TemporaryDirectory() as csvtmp:
     ax.invert_zaxis()
     ax.plot(x, y, z, 'green')
     ax.plot([x[0]], [y[0]], [z[0]], 'ro')
-    ax.plot([x[-1]], [y[-1]], [z[-1]], 'bo') 
+    ax.plot([x[-1]], [y[-1]], [z[-1]], 'bo')
     fig, axs = plt.subplots(3, sharex=True)
     axs[0].plot(time_seq, x, color='g')
     axs[0].fill_between(time_seq, x-horizontal_std, x+horizontal_std, color='y', alpha=0.3)
