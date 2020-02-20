@@ -6,6 +6,4 @@ monitor=$(tvservice -n)
 if [[ $monitor == "" ]]; then
   echo "Blind mode."
   python3 press2record.py
-else
-  echo "Normal mode."
 fi
