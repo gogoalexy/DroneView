@@ -30,6 +30,13 @@ def calculate_roll_yaw_pitch(ulog_object):
     px4log = pyulog.px4.PX4ULog(ulog_object)
     px4log.add_roll_pitch_yaw()
     
+def cumulate_rieman_sum(x, y, x0=0., y0=0.):
+    xi_1, y_cumulate = x0, y0
+    for xi, yi in zip(x, y):
+        y_cumulate = y_cumulate + (xi - xi_1)*yi
+        xi_1 = xi
+        yield y_cumulate
+    
 drone_log = load_log_file(infile)
 calculate_roll_yaw_pitch(drone_log)
 
@@ -52,6 +59,10 @@ vx = np.array(local_position.data['vx'])
 vy = np.array(local_position.data['vy'])
 vz = np.array(local_position.data['vz'])
 
+sum_x = list(cumulate_rieman_sum(time_seq, vx, time_seq[0], x[0]))
+sum_y = list(cumulate_rieman_sum(time_seq, vy, time_seq[0], y[0]))
+sum_z = list(cumulate_rieman_sum(time_seq, vz, time_seq[0], z[0]))
+
 fig = plt.figure(0)
 ax = fig.add_subplot(111, projection='3d')
 ax.invert_zaxis()
@@ -61,11 +72,14 @@ ax.plot([x[-1]], [y[-1]], [z[-1]], 'bo')
 fig, axs = plt.subplots(3, sharex=True)
 axs[0].plot(time_seq, x, color='g')
 axs[0].fill_between(time_seq, x-horizontal_std, x+horizontal_std, color='y', alpha=0.3)
+axs[0].plot(time_seq, sum_x, color='c')
 axs[1].plot(time_seq, y, color='g')
 axs[1].fill_between(time_seq, y-horizontal_std, y+horizontal_std, color='y', alpha=0.3)
+axs[1].plot(time_seq, sum_y, color='c')
 axs[2].invert_yaxis()
 axs[2].plot(time_seq, z, color='g')
 axs[2].fill_between(time_seq, z-vertical_std, z+vertical_std, color='y', alpha=0.3)
+axs[2].plot(time_seq, sum_z, color='c')
 fig, axs = plt.subplots(3, sharex=True)
 axs[0].plot(time_seq, vx)
 axs[0].fill_between(time_seq, vx-horizontal_velocity_std, vx+horizontal_velocity_std, color='r', alpha=0.3)
