@@ -1,4 +1,5 @@
 import argparse
+import csv
 import os
 
 import matplotlib.pyplot as plt
@@ -8,7 +9,6 @@ import pyulog
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input")
-parser.add_argument("-v", "--visualize", action="store_true")
 parser.add_argument("-o", "--output", action="store_true")
 args = parser.parse_args()
 
@@ -59,6 +59,13 @@ vx = np.array(local_position.data['vx'])
 vy = np.array(local_position.data['vy'])
 vz = np.array(local_position.data['vz'])
 
+if args.output:
+    with open(f"{infileName}_basic.csv", 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(["t", "x", "y", "z", "vx", "vy", "vz", "eph", "epv", "evh", "evv"])
+        for ti, xi, yi, zi, vxi, vyi, vzi, ephi, epvi, evhi, evvi in zip(time_seq, x, y, z, vx, vy, vz, horizontal_std, vertical_std, horizontal_velocity_std, virtical_velocity_std):
+            writer.writerow([ti, xi, yi, zi, vxi, vyi, vzi, ephi, epvi, evhi, evvi])
+    
 sum_x = list(cumulate_rieman_sum(time_seq, vx, time_seq[0], x[0]))
 sum_y = list(cumulate_rieman_sum(time_seq, vy, time_seq[0], y[0]))
 sum_z = list(cumulate_rieman_sum(time_seq, vz, time_seq[0], z[0]))
