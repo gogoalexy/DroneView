@@ -7,6 +7,8 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import pyulog
 
+from configurations import flight_modes_table, arming_status_table
+
 parser = argparse.ArgumentParser()
 parser.add_argument("input")
 parser.add_argument("-o", "--output", action="store_true")
@@ -16,29 +18,49 @@ infile = args.input
 infileName = os.path.splitext(infile)[0]
 
 def load_log_file(filename):
-    useful_messages = ['vehicle_attitude', 'vehicle_local_position']
+    useful_messages = ['vehicle_attitude', 'vehicle_local_position', 'vehicle_status']
     try:
-        log = pyulog.ULog(filename, message_name_filter_list=useful_messages)
+        ulog = pyulog.ULog(filename, message_name_filter_list=useful_messages)
     except FileNotFoundError:
         print(f"File {filename} does not exist.")
     except:
         print("Error while reading or parsing the ulog file.")
     else:
-        return log
-    
-def calculate_roll_yaw_pitch(ulog_object):
-    px4log = pyulog.px4.PX4ULog(ulog_object)
+        return ulog
+
+def calculate_roll_yaw_pitch(ulog):
+    px4log = pyulog.px4.PX4ULog(ulog)
     px4log.add_roll_pitch_yaw()
-    
+
+def get_flight_modes(ulog):
+    vehicle_status = ulog.get_dataset('vehicle_status')
+    modes = vehicle_status.list_value_changes('nav_state')
+    for element in modes:
+        time, mode = element
+        if mode in flight_modes_table:
+            mode_name = flight_modes_table[mode]
+            yield (time, mode_name)
+
+def get_arming_states(ulog):
+    vehicle_status = ulog.get_dataset('vehicle_status')
+    arming = vehicle_status.list_value_changes('arming_state')
+    for element in arming:
+        time, state = element
+        if state in arming_status_table:
+            status_name = arming_status_table[state]
+            yield (time, status_name)
+
 def cumulate_rieman_sum(x, y, x0=0., y0=0.):
     xi_1, y_cumulate = x0, y0
     for xi, yi in zip(x, y):
         y_cumulate = y_cumulate + (xi - xi_1)*yi
         xi_1 = xi
         yield y_cumulate
-    
+
 drone_log = load_log_file(infile)
 calculate_roll_yaw_pitch(drone_log)
+print(list(get_flight_modes(drone_log)))
+print(list(get_arming_states(drone_log)))
 
 attitude = drone_log.get_dataset('vehicle_attitude')
 time = attitude.data['timestamp']
@@ -65,7 +87,7 @@ if args.output:
         writer.writerow(["t", "x", "y", "z", "vx", "vy", "vz", "eph", "epv", "evh", "evv"])
         for ti, xi, yi, zi, vxi, vyi, vzi, ephi, epvi, evhi, evvi in zip(time_seq, x, y, z, vx, vy, vz, horizontal_std, vertical_std, horizontal_velocity_std, virtical_velocity_std):
             writer.writerow([ti, xi, yi, zi, vxi, vyi, vzi, ephi, epvi, evhi, evvi])
-    
+
 sum_x = list(cumulate_rieman_sum(time_seq, vx, time_seq[0], x[0]))
 sum_y = list(cumulate_rieman_sum(time_seq, vy, time_seq[0], y[0]))
 sum_z = list(cumulate_rieman_sum(time_seq, vz, time_seq[0], z[0]))
