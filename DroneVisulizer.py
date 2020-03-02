@@ -29,6 +29,20 @@ def load_log_file(filename):
     else:
         return ulog
 
+def getCatagory(ulog, message):
+    catagory = ulog.get_dataset(message)
+    return catagory
+
+def getColumns(catogory, column_names, column_alias=None, time_in_second=False):
+    if column_alias:
+        data_collection = {alias: catogory.data[name] for name, alias in zip(column_names, column_alias)}
+    else:
+        data_collection = {name: catogory.data[name] for name in column_names}
+    if time_in_second:
+        normalized_time = [time/1e6 for time in data_collection['time']]
+        data_collection['time'] = normalized_time
+    return data_collection
+
 def calculate_roll_yaw_pitch(ulog):
     px4log = pyulog.px4.PX4ULog(ulog)
     px4log.add_roll_pitch_yaw()
@@ -58,18 +72,22 @@ def cumulate_rieman_sum(x, y, x0=0., y0=0.):
         xi_1 = xi
         yield y_cumulate
 
+
 drone_log = load_log_file(infile)
 calculate_roll_yaw_pitch(drone_log)
 print(list(get_flight_modes(drone_log)))
 print(list(get_arming_states(drone_log)))
 
-attitude = drone_log.get_dataset('vehicle_attitude')
-time = attitude.data['timestamp']
-roll = attitude.data['roll']
-yaw = attitude.data['yaw']
-pitch = attitude.data['pitch']
+vehicle_attitude = getCatagory(drone_log, 'vehicle_attitude')
+local_position = getCatagory(drone_log, 'vehicle_local_position')
+estimator_status = getCatagory(drone_log, 'estimator_status')
 
-local_position = drone_log.get_dataset('vehicle_local_position')
+attitude = getColumns(vehicle_attitude, ['timestamp', 'roll', 'pitch', 'yaw'], ['time', 'roll', 'pitch', 'yaw'], time_in_second=True)
+deg_attitude = {key: np.rad2deg(values) for key, values in attitude.items()}
+deg_attitude['time'] = attitude['time']
+vibration = getColumns(estimator_status, ['timestamp', 'vibe[0]', 'vibe[1]', 'vibe[2]'], ['time', 'GyroDeltaAngleConing', 'GyroHighFreq', 'AccelHighFreq'], time_in_second=True)
+position = getColumns(local_position, ['timestamp', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'eph', 'epv', 'evh', 'evv'], ['time', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'horizontal_std', 'vertical_std', 'horizontal_velocity_std', 'virtical_velocity_std'], time_in_second=True)
+
 if args.start_from_zero:
     start_time = local_position.data['timestamp'][0]
     time_seq = np.array( [ (microsec-start_time)/1e6 for microsec in local_position.data['timestamp'] ] )
@@ -135,8 +153,12 @@ axs[2].invert_yaxis()
 axs[2].plot(time_seq, vz)
 axs[2].fill_between(time_seq, vz-virtical_velocity_std, vz+virtical_velocity_std, color='r', alpha=0.3)
 axs[2].set_xlabel("time (s)")
-fig, axs = plt.subplots(3, sharex=True)
-axs[0].plot(time, roll, color='k')
-axs[1].plot(time, yaw, color='k')
-axs[2].plot(time, pitch, color='k')
+fig = plt.figure(4)
+plt.plot(attitude['time'], deg_attitude['roll'], color='r')
+plt.plot(attitude['time'], deg_attitude['pitch'], color='g')
+plt.plot(attitude['time'], deg_attitude['yaw'], color='b')
+fig = plt.figure(5)
+plt.plot(vibration['time'], vibration['GyroDeltaAngleConing'], color='c')
+plt.plot(vibration['time'], vibration['GyroHighFreq'], color='m')
+plt.plot(vibration['time'], vibration['AccelHighFreq'], color='y')
 plt.show()
