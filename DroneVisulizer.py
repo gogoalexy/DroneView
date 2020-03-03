@@ -39,8 +39,9 @@ def getColumns(catogory, column_names, column_alias=None, time_in_second=False):
     else:
         data_collection = {name: catogory.data[name] for name in column_names}
     if time_in_second:
-        normalized_time = [time/1e6 for time in data_collection['time']]
-        data_collection['time'] = normalized_time
+        time_key = 'timestamp' if 'timestamp' in data_collection else 'time'
+        normalized_time = [time/1e6 for time in data_collection[time_key]]
+        data_collection[time_key] = normalized_time
     return data_collection
 
 def calculate_roll_yaw_pitch(ulog):
@@ -72,6 +73,34 @@ def cumulate_rieman_sum(x, y, x0=0., y0=0.):
         xi_1 = xi
         yield y_cumulate
 
+def change_diagnose(timestamps, flags, flag_type):
+    if flag_type == 'innovation_check_flags':
+        prvsflag = 0
+        for time, flag in zip(timestamps, flags):
+            if flag == prvsflag:
+                continue
+            else:
+                outcome = []
+                if flag & 0x01:
+                    outcome.append("vel")
+                if flag>>1 & 0x01:
+                    outcome.append("hpos")
+                if flag>>2 & 0x01:
+                    outcome.append("vpos")
+                if flag>>3 & 0x07:
+                    outcome.append("mag")
+                if flag>>6 & 0x01:
+                    outcome.append("yaw")
+                if flag>>7 & 0x01:
+                    outcome.append("airspeed")
+                if flag>>8 & 0x01:
+                    outcome.append("syn sideslip")
+                if flag>>9 & 0x01:
+                    outcome.append("height above ground")
+                if flag>>10 & 0x03:
+                    outcome.append("OF")
+                prvsflag = flag
+                yield (time, outcome)
 
 drone_log = load_log_file(infile)
 calculate_roll_yaw_pitch(drone_log)
@@ -87,6 +116,7 @@ deg_attitude = {key: np.rad2deg(values) for key, values in attitude.items()}
 deg_attitude['time'] = attitude['time']
 vibration = getColumns(estimator_status, ['timestamp', 'vibe[0]', 'vibe[1]', 'vibe[2]'], ['time', 'GyroDeltaAngleConing', 'GyroHighFreq', 'AccelHighFreq'], time_in_second=True)
 position = getColumns(local_position, ['timestamp', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'eph', 'epv', 'evh', 'evv'], ['time', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'horizontal_std', 'vertical_std', 'horizontal_velocity_std', 'virtical_velocity_std'], time_in_second=True)
+watchdog = getColumns(estimator_status, ['timestamp', 'innovation_check_flags'], time_in_second=True)
 
 if args.start_from_zero:
     start_time = local_position.data['timestamp'][0]
@@ -161,4 +191,10 @@ fig = plt.figure(5)
 plt.plot(vibration['time'], vibration['GyroDeltaAngleConing'], color='c')
 plt.plot(vibration['time'], vibration['GyroHighFreq'], color='m')
 plt.plot(vibration['time'], vibration['AccelHighFreq'], color='y')
+fig = plt.figure(6)
+plt.plot(watchdog['timestamp'], watchdog['innovation_check_flags'], color='k')
+diagnose = change_diagnose(watchdog['timestamp'], watchdog['innovation_check_flags'], 'innovation_check_flags')
+for item, event in enumerate(diagnose):
+    for index, label in enumerate(event[1]):
+        plt.text(event[0], item*5+index*20+10, label)
 plt.show()
