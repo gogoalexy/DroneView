@@ -135,11 +135,11 @@ vy = np.array(local_position.data['vy'])
 vz = np.array(local_position.data['vz'])
 
 if args.output:
-    with open(f"{infileName}_basic.csv", 'w', newline='') as csvfile:
+    with open(f"{infileName}_velocity.csv", 'w', newline='') as csvfile:
         writer = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(["t", "x", "y", "z", "vx", "vy", "vz", "eph", "epv", "evh", "evv"])
-        for ti, xi, yi, zi, vxi, vyi, vzi, ephi, epvi, evhi, evvi in zip(time_seq, x, y, z, vx, vy, vz, horizontal_std, vertical_std, horizontal_velocity_std, virtical_velocity_std):
-            writer.writerow([ti, xi, yi, zi, vxi, vyi, vzi, ephi, epvi, evhi, evvi])
+        writer.writerow(["t", "vx", "vy", "vz"])
+        for ti, vxi, vyi, vzi in zip(time_seq, vx, vy, vz):
+            writer.writerow([ti, vxi, vyi, vzi])
 
 sum_x = list(cumulate_rieman_sum(time_seq, vx, time_seq[0], x[0]))
 sum_y = list(cumulate_rieman_sum(time_seq, vy, time_seq[0], y[0]))
