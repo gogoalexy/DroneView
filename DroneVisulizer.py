@@ -8,6 +8,7 @@ import numpy as np
 import pyulog
 
 from configurations import flight_modes_table, arming_status_table
+from Diagnosis import change_diagnose
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input")
@@ -73,40 +74,13 @@ def cumulate_rieman_sum(x, y, x0=0., y0=0.):
         xi_1 = xi
         yield y_cumulate
 
-def change_diagnose(timestamps, flags, flag_type):
-    if flag_type == 'innovation_check_flags':
-        prvsflag = 0
-        for time, flag in zip(timestamps, flags):
-            if flag == prvsflag:
-                continue
-            else:
-                outcome = []
-                if flag & 0x01:
-                    outcome.append("vel")
-                if flag>>1 & 0x01:
-                    outcome.append("hpos")
-                if flag>>2 & 0x01:
-                    outcome.append("vpos")
-                if flag>>3 & 0x07:
-                    outcome.append("mag")
-                if flag>>6 & 0x01:
-                    outcome.append("yaw")
-                if flag>>7 & 0x01:
-                    outcome.append("airspeed")
-                if flag>>8 & 0x01:
-                    outcome.append("syn sideslip")
-                if flag>>9 & 0x01:
-                    outcome.append("height above ground")
-                if flag>>10 & 0x03:
-                    outcome.append("OF")
-                prvsflag = flag
-                yield (time, outcome)
 
 drone_log = load_log_file(infile)
 calculate_roll_yaw_pitch(drone_log)
 print(list(get_flight_modes(drone_log)))
 print(list(get_arming_states(drone_log)))
 
+vehicle_status = getCatagory(drone_log, 'vehicle_status')
 vehicle_attitude = getCatagory(drone_log, 'vehicle_attitude')
 local_position = getCatagory(drone_log, 'vehicle_local_position')
 estimator_status = getCatagory(drone_log, 'estimator_status')
@@ -117,6 +91,7 @@ deg_attitude['time'] = attitude['time']
 vibration = getColumns(estimator_status, ['timestamp', 'vibe[0]', 'vibe[1]', 'vibe[2]'], ['time', 'GyroDeltaAngleConing', 'GyroHighFreq', 'AccelHighFreq'], time_in_second=True)
 position = getColumns(local_position, ['timestamp', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'eph', 'epv', 'evh', 'evv'], ['time', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'horizontal_std', 'vertical_std', 'horizontal_velocity_std', 'virtical_velocity_std'], time_in_second=True)
 watchdog = getColumns(estimator_status, ['timestamp', 'innovation_check_flags'], time_in_second=True)
+failure = getColumns(vehicle_status, ['timestamp', 'failure_detector_status'], time_in_second=True)
 
 if args.start_from_zero:
     start_time = local_position.data['timestamp'][0]
@@ -193,8 +168,13 @@ plt.plot(vibration['time'], vibration['GyroHighFreq'], color='m')
 plt.plot(vibration['time'], vibration['AccelHighFreq'], color='y')
 fig = plt.figure(6)
 plt.plot(watchdog['timestamp'], watchdog['innovation_check_flags'], color='k')
+plt.plot(failure['timestamp'], failure['failure_detector_status'], color='r')
 diagnose = change_diagnose(watchdog['timestamp'], watchdog['innovation_check_flags'], 'innovation_check_flags')
+diagnose1 = change_diagnose(failure['timestamp'], failure['failure_detector_status'], 'failure_detector_status')
 for item, event in enumerate(diagnose):
     for index, label in enumerate(event[1]):
         plt.text(event[0], item*5+index*20+10, label)
+for item, event in enumerate(diagnose1):
+    for index, label in enumerate(event[1]):
+        plt.text(event[0], item*5+index*20+20, label)
 plt.show()
