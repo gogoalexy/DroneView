@@ -7,6 +7,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import pyulog
 
+from helper import ULogHelper
 from configurations import flight_modes_table, arming_status_table
 from Diagnosis import DiagnoseFailure
 
