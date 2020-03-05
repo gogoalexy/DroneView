@@ -8,7 +8,7 @@ import numpy as np
 import pyulog
 
 from configurations import flight_modes_table, arming_status_table
-from Diagnosis import change_diagnose
+from Diagnosis import DiagnoseFailure
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input")
@@ -74,7 +74,7 @@ def cumulate_rieman_sum(x, y, x0=0., y0=0.):
         xi_1 = xi
         yield y_cumulate
 
-
+failuredetect = DiagnoseFailure()
 drone_log = load_log_file(infile)
 calculate_roll_yaw_pitch(drone_log)
 print(list(get_flight_modes(drone_log)))
@@ -169,8 +169,8 @@ plt.plot(vibration['time'], vibration['AccelHighFreq'], color='y')
 fig = plt.figure(6)
 plt.plot(watchdog['timestamp'], watchdog['innovation_check_flags'], color='k')
 plt.plot(failure['timestamp'], failure['failure_detector_status'], color='r')
-diagnose = change_diagnose(watchdog['timestamp'], watchdog['innovation_check_flags'], 'innovation_check_flags')
-diagnose1 = change_diagnose(failure['timestamp'], failure['failure_detector_status'], 'failure_detector_status')
+diagnose = failuredetect.change_diagnose(watchdog['timestamp'], watchdog['innovation_check_flags'], 'innovation_check_flags')
+diagnose1 = failuredetect.change_diagnose(failure['timestamp'], failure['failure_detector_status'], 'failure_detector_status')
 for item, event in enumerate(diagnose):
     for index, label in enumerate(event[1]):
         plt.text(event[0], item*5+index*20+10, label)
