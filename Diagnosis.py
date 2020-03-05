@@ -1,8 +1,11 @@
+from helper import ULogHelper
+
 class DiagnoseFailure():
 
-    def __init__(self):
-        pass
-
+    def __init__(self, ulog):
+        data_parser = ULogHelper(ulog)
+        data_parser.extractRequiredMessages(['estimator_status', 'vehicle_status'])
+    
     def change_diagnose(self, timestamps, flags, flag_type):
         if flag_type == 'innovation_check_flags':
             return self.innovation_check(timestamps, flags)

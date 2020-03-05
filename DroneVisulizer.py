@@ -10,6 +10,7 @@ import pyulog
 from helper import ULogHelper
 from configurations import flight_modes_table, arming_status_table
 from Diagnosis import DiagnoseFailure
+from tracker import PositionTracker
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input")
@@ -75,40 +76,38 @@ def cumulate_rieman_sum(x, y, x0=0., y0=0.):
         xi_1 = xi
         yield y_cumulate
 
-failuredetect = DiagnoseFailure()
 drone_log = load_log_file(infile)
 calculate_roll_yaw_pitch(drone_log)
+failuredetect = DiagnoseFailure(drone_log)
+pos = PositionTracker(drone_log)
 print(list(get_flight_modes(drone_log)))
 print(list(get_arming_states(drone_log)))
 
 vehicle_status = getCatagory(drone_log, 'vehicle_status')
 vehicle_attitude = getCatagory(drone_log, 'vehicle_attitude')
-local_position = getCatagory(drone_log, 'vehicle_local_position')
 estimator_status = getCatagory(drone_log, 'estimator_status')
 
 attitude = getColumns(vehicle_attitude, ['timestamp', 'roll', 'pitch', 'yaw'], ['time', 'roll', 'pitch', 'yaw'], time_in_second=True)
 deg_attitude = {key: np.rad2deg(values) for key, values in attitude.items()}
 deg_attitude['time'] = attitude['time']
 vibration = getColumns(estimator_status, ['timestamp', 'vibe[0]', 'vibe[1]', 'vibe[2]'], ['time', 'GyroDeltaAngleConing', 'GyroHighFreq', 'AccelHighFreq'], time_in_second=True)
-position = getColumns(local_position, ['timestamp', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'eph', 'epv', 'evh', 'evv'], ['time', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'horizontal_std', 'vertical_std', 'horizontal_velocity_std', 'virtical_velocity_std'], time_in_second=True)
 watchdog = getColumns(estimator_status, ['timestamp', 'innovation_check_flags'], time_in_second=True)
 failure = getColumns(vehicle_status, ['timestamp', 'failure_detector_status'], time_in_second=True)
 
 if args.start_from_zero:
-    start_time = local_position.data['timestamp'][0]
-    time_seq = np.array( [ (microsec-start_time)/1e6 for microsec in local_position.data['timestamp'] ] )
+    time_seq = np.array( pos.normalized_time )
 else:
-    time_seq = np.array( [ microsec/1e6 for microsec in local_position.data['timestamp'] ] )
-horizontal_std = np.array(local_position.data['eph'])
-vertical_std = np.array(local_position.data['epv'])
-horizontal_velocity_std = np.array(local_position.data['evh'])
-virtical_velocity_std = np.array(local_position.data['evv'])
-x = np.array(local_position.data['x'])
-y = np.array(local_position.data['y'])
-z = np.array(local_position.data['z'])
-vx = np.array(local_position.data['vx'])
-vy = np.array(local_position.data['vy'])
-vz = np.array(local_position.data['vz'])
+    time_seq = np.array( pos.time )
+horizontal_std = np.array(pos.std_horizontal_pos_err)
+vertical_std = np.array(pos.std_vertical_pos_err)
+horizontal_velocity_std = np.array(pos.std_horizontal_vel_err)
+virtical_velocity_std = np.array(pos.std_vertical_vel_err)
+x = np.array(pos.x)
+y = np.array(pos.y)
+z = np.array(pos.z)
+vx = np.array(pos.vx)
+vy = np.array(pos.vy)
+vz = np.array(pos.vz)
 
 if args.output:
     with open(f"{infileName}_velocity.csv", 'w', newline='') as csvfile:
@@ -174,8 +173,8 @@ diagnose = failuredetect.change_diagnose(watchdog['timestamp'], watchdog['innova
 diagnose1 = failuredetect.change_diagnose(failure['timestamp'], failure['failure_detector_status'], 'failure_detector_status')
 for item, event in enumerate(diagnose):
     for index, label in enumerate(event[1]):
-        plt.text(event[0], item*5+index*20+10, label)
+        plt.text(event[0], item*5+index*20+5, label)
 for item, event in enumerate(diagnose1):
     for index, label in enumerate(event[1]):
-        plt.text(event[0], item*5+index*20+20, label)
+        plt.text(event[0], item*5+index*20+10, label)
 plt.show()
