@@ -1,6 +1,8 @@
+from scipy.signal import butter
+
 from helper import ULogHelper
 
-class DiagnoseFailure():
+class DiagnoseFailure:
 
     def __init__(self, ulog):
         data_parser = ULogHelper(ulog)
@@ -93,3 +95,60 @@ class DiagnoseFailure():
             time, status = element
             if status:
                 yield (time, 'trigger')
+                
+class Vibration:
+
+    def __init__(self, ulog):
+        data_parser = ULogHelper(ulog)
+        data_parser.extractRequiredMessages(['estimator_status', 'sensor_combined'])
+        self.time = data_parser.getTimeSeries('estimator_status')
+        self.normalized_time = data_parser.getTimeSeries('estimator_status', start_from_zero=True)
+        self.gyro_delta_angle_coning = data_parser.getMessage('estimator_status', 'vibe[0]')
+        self.gyro_high_freq = data_parser.getMessage('estimator_status', 'vibe[1]')
+        self.accel_high_freq = data_parser.getMessage('estimator_status', 'vibe[2]')
+        self.sensor_time = data_parser.getTimeSeries('sensor_combined')
+        self.raw_accel_x = data.parser.getMessage('accelerometer_m_s2[0]')
+        self.raw_accel_y = data.parser.getMessage('accelerometer_m_s2[1]')
+        self.raw_accel_z = data.parser.getMessage('accelerometer_m_s2[2]')
+        
+    def calcIMUClipping():
+        pass
+    
+    def calcVibration():
+        pass
+    '''
+    // calculate vibration levels and check for accelerometer clipping (called by a backends)
+void AP_InertialSensor::calc_vibration_and_clipping(uint8_t instance, const Vector3f &accel, float dt)
+{
+    // check for clipping
+    if (_backends[instance] == nullptr) {
+        return;
+    }
+    if (fabsf(accel.x) >  _backends[instance]->get_clip_limit() ||
+        fabsf(accel.y) >  _backends[instance]->get_clip_limit() ||
+        fabsf(accel.z) > _backends[instance]->get_clip_limit()) {
+        _accel_clip_count[instance]++;
+    }
+
+    // calculate vibration levels
+    if (instance < INS_VIBRATION_CHECK_INSTANCES) {
+        // filter accel at 5hz
+        Vector3f accel_filt = _accel_vibe_floor_filter[instance].apply(accel, dt);
+
+        // calc difference from this sample and 5hz filtered value, square and filter at 2hz
+        Vector3f accel_diff = (accel - accel_filt);
+        accel_diff.x *= accel_diff.x;
+        accel_diff.y *= accel_diff.y;
+        accel_diff.z *= accel_diff.z;
+        _accel_vibe_filter[instance].apply(accel_diff, dt);
+    }
+}
+
+    The algorithm for calculating the vibration levels can be seen in the AP_InertialSensor.cpp’s calc_vibration_and_clipping() method 
+    but in short it involves calculating the standard deviation of the accelerometer readings like this:
+    Capture the raw x, y and z accelerometer values from the primary IMU
+    High-pass filter the raw values at 5hz to remove the vehicle’s movement and create a “accel_vibe_floor” for x,y and z axis.
+    Calculate the difference between the latest accel values and the accel_vibe_floor.
+    Square the above differences, filter at 2hz and then calculate the square root (for x, y and z).
+    These final three values are what appear in the VIBE msg’s VibeX, Y and Z fields.
+    '''
