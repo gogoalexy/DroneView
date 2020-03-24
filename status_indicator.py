@@ -5,50 +5,52 @@ from gpiozero import LED
 class StatusIndicator:
     
     def __init__(self):
-        self.standby_indicator = LED(24)
-        self.record_indicator = LED(23)
-        self.standby_indicator.off()
-        self.record_indicator.off()
+        self.red = LED(23)
+        self.green = LED(24)
+        self.blue = LED(25)
         
     def ready(self):
-        self.standby_indicator.on()     
+        self.green.on()
     
     def pressed(self):
-        self.standby_indicator.off()
-        self.record_indicator.off()
-        
-        self.record_indicator.on()
+        self.blue.on()
         sleep(0.3)
-        self.record_indicator.off()
-        self.standby_indicator.on()
-        sleep(0.3)
-        self.standby_indicator.off()
-        
-        self.standby_indicator.off()
-        self.record_indicator.off()
+        self.blue.off()
     
+    def connecting(self):
+        self.green.on()
+        self.red.on()
+
     def connected(self):
-        self.standby_indicator.blink()
+        self.red.off()
+        self.green.blink()
     
     def error(self):
-        self.standby_indicator.off()
-        self.record_indicator.on()
+        self.off()
+        self.red.on()
         sleep(3)
     
     def start_recording(self):
-        self.record_indicator.blink()
+        self.green.off()
+        self.red.blink()
     
     def end_recording(self):
-        self.record_indicator.off()
+        self.red.off()
+        self.connected()
     
     def test(self):
-        self.standby_indicator.on()
-        self.record_indicator.on()
-        sleep(1)
-        self.standby_indicator.off()
-        self.record_indicator.off()
+        self.red.on()
+        sleep(0.5)
+        self.red.off()
+        self.green.on()
+        sleep(0.5)
+        self.green.off()
+        self.blue.on()
+        sleep(0.5)
+        self.blue.off()
     
     def off(self):
-        self.standby_indicator.off()
-        self.record_indicator.off()
+        self.red.off()
+        self.green.off()
+        self.blue.off()
         

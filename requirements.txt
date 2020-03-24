@@ -1,5 +1,4 @@
 dronekit
 matplotlib
-pandas
 pyulog
 

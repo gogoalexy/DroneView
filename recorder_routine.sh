@@ -1,9 +1,9 @@
 #!/bin/bash
 
-monitor=$(tvservice -n)
+DE=$XDG_CURRENT_DESKTOP
 
 # No device error will be directed to stderr not stdout
-if [[ $monitor == "" ]]; then
+if [[ $DE == "" ]]; then
   echo "Blind mode."
-  python3 press2record.py
+  python3 ~/repo/DroneView/press2record.py
 fi

@@ -12,10 +12,10 @@ def exit_signal():
 
 camera = picamera.PiCamera()
 camera.resolution = (1280, 720)
-camera.framerate = 30
+camera.framerate = 31
 camera.brightness = 40
 camera.awb_mode = 'sunlight'
-button = Button(25)
+button = Button(16)
 status = StatusIndicator()
 
 status.test()
@@ -25,7 +25,8 @@ status.ready()
 button.wait_for_press()
 status.pressed()
 try:
-    vehicle = connect("/dev/ttyS0", wait_ready=True, baud=921600)
+    status.connecting()
+    vehicle = connect("/dev/ttyS0", wait_ready=True, baud=921600, heartbeat_timeout=15)
     status.connected()
 except:
     status.error()
@@ -54,7 +55,6 @@ while True:
         status.start_recording()
         while vehicle.armed:
             log.write(str(vehicle.last_heartbeat) + ';')
-            log.write(str(vehicle.location.local_frame) + ';')
             log.write('\n')
             camera.wait_recording(0.5)
         
