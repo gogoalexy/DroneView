@@ -1,3 +1,6 @@
 [submodule "Firmware"]
 	path = Firmware
 	url = https://github.com/PX4/Firmware
+[submodule "c_mavlink_v2"]
+	path = c_mavlink_v2
+	url = https://github.com/mavlink/c_library_v2.git
