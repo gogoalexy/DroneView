@@ -1,4 +1,4 @@
-FROM px4io/px4-dev-simulation-bionic
+FROM px4io/px4-dev-simulation-bionic:2020-01-29
 
 ENV WORKSPACE_DIR /root
 ENV FIRMWARE_DIR ${WORKSPACE_DIR}/Firmware
@@ -11,7 +11,10 @@ RUN \
 
 RUN git clone https://github.com/PX4/Firmware.git ${FIRMWARE_DIR}
 RUN git -C ${FIRMWARE_DIR} checkout master
+RUN git -C ${FIRMWARE_DIR} checkout v1.10.2
 RUN git -C ${FIRMWARE_DIR} submodule update --init --recursive
+
+RUN apt-get -y autoremove python2.7
 
 COPY edit_rcS.bash ${WORKSPACE_DIR}
 COPY entrypoint.sh /root/entrypoint.sh
